@@ -65,7 +65,7 @@ func InitFlags(p *config.PrometheusConfig) {
 	flags.BoolEnvVar(&p.ScrapeNodeLocalDNS, "prometheus-scrape-node-local-dns", "PROMETHEUS_SCRAPE_NODE_LOCAL_DNS", false, "Whether to scrape node-local-dns pods.")
 	flags.BoolEnvVar(&p.ScrapeAnet, "prometheus-scrape-anet", "PROMETHEUS_SCRAPE_ANET", false, "Whether to scrape anet pods.")
 	flags.BoolEnvVar(&p.ScrapeCiliumOperator, "prometheus-scrape-cilium-operator", "PROMETHEUS_SCRAPE_CILIUM_OPERATOR", false, "Whether to scrape cilium-operator pods.")
-	flags.IntEnvVar(&p.APIServerScrapePort, "prometheus-apiserver-scrape-port", "PROMETHEUS_APISERVER_SCRAPE_PORT", 443, "Port for scraping kube-apiserver (default 443).")
+	flags.IntEnvVar(&p.APIServerScrapePort, "prometheus-apiserver-scrape-port", "PROMETHEUS_APISERVER_SCRAPE_PORT", 6443, "Port for scraping kube-apiserver (default 443).")
 	flags.StringEnvVar(&p.SnapshotProject, "experimental-snapshot-project", "PROJECT", "", "GCP project used where disks and snapshots are located.")
 	flags.StringEnvVar(&p.ManifestPath, "prometheus-manifest-path", "PROMETHEUS_MANIFEST_PATH", "$GOPATH/src/k8s.io/perf-tests/clusterloader2/pkg/prometheus/manifests", "Path to the prometheus manifest files.")
 	flags.StringEnvVar(&p.StorageClassProvisioner, "prometheus-storage-class-provisioner", "PROMETHEUS_STORAGE_CLASS_PROVISIONER", "kubernetes.io/gce-pd", "Volumes plugin used to provision PVs for Prometheus.")
@@ -362,10 +362,15 @@ func (pc *Controller) exposeAPIServerMetrics() error {
 	return nil
 }
 
+func (pc *Controller) runNodeExporter() error {
+	klog.V(2).Infof("Warning: Please install node-expoter on master mannually")
+	return nil
+}
+
 // runNodeExporter adds node-exporter as master's static manifest pod.
 // TODO(mborsz): Consider migrating to something less ugly, e.g. daemonset-based approach,
 // when master nodes have configured networking.
-func (pc *Controller) runNodeExporter() error {
+func (pc *Controller) runNodeExporterBAK() error {
 	klog.V(2).Infof("Starting node-exporter on master nodes.")
 	kubemarkFramework, err := framework.NewFramework(&pc.clusterLoaderConfig.ClusterConfig, numK8sClients)
 	if err != nil {
@@ -432,7 +437,7 @@ func (pc *Controller) isPrometheusReady() (bool, error) {
 		return CheckTargetsReady( // 1 out of 2 etcd targets should be ready.
 			pc.framework.GetClientSets().GetClient(),
 			func(t Target) bool { return isEtcdEndpoint(t.Labels["endpoint"]) },
-			2, // expected targets: etcd-2379 and etcd-2382
+			1, // expected targets: etcd-2381
 			1) // one of them should be healthy
 	}
 	return CheckAllTargetsReady(
@@ -513,5 +518,6 @@ func getMasterIpsFromKubernetesService(clusterConfig config.ClusterConfig) ([]st
 }
 
 func isEtcdEndpoint(endpoint string) bool {
-	return endpoint == "etcd-2379" || endpoint == "etcd-2382"
+	return endpoint == "etcd-2381"
+	//return endpoint == "etcd-2379" || endpoint == "etcd-2382"
 }
